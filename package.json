@@ -1,0 +1,25 @@
+{
+    "name": "era-simplekpigrid",
+    "version": "1.0.0.7",
+    "scripts": {
+        "pbiviz": "pbiviz",
+        "start": "pbiviz start",
+        "package": "pbiviz package"
+    },
+    "dependencies": {
+        "@babel/runtime": "7.24.7",
+        "@babel/runtime-corejs3": "7.24.7",
+        "core-js": "3.37.1",
+        "d3": "7.9.0",
+        "powerbi-models": "^1.15.2",
+        "powerbi-visuals-api": "~5.11.0",
+        "powerbi-visuals-utils-dataviewutils": "^6.1.0",
+        "powerbi-visuals-utils-formattingmodel": "^6.2.1",
+        "powerbi-visuals-utils-formattingutils": "^6.1.2"
+    },
+    "devDependencies": {
+        "@types/d3": "7.4.3",
+        "ts-loader": "9.5.1",
+        "typescript": "5.5.4"
+    }
+}

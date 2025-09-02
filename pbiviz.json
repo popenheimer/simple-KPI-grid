@@ -1,0 +1,24 @@
+{
+    "visual": {
+        "name": "ERASimpleKPIGrid",
+        "displayName": "ERA Simple KPI Grid",
+        "guid": "ERASimpleKPIGridGUID4AD8D1E1DA0943AEB18E1E59B92001A9",
+        "visualClassName": "Visual",
+        "version": "1.0.0.7",
+        "description": "Easily create a grid of KPI Cards",
+        "supportUrl": "https://example.com/support"
+    },
+    "apiVersion": "5.11.0",
+    "author": {
+        "name": "Mike Pope",
+        "email": "michalepope143@gmail.com"
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": [],
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": "dependencies.json",
+    "stringResources": []
+}

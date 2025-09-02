@@ -1,0 +1,31 @@
+.scrollable-container {
+  /* General scrollbar width and color (Firefox and modern browsers) */
+  scrollbar-width: thin; /* Thin to match Power BI's subtle defaults */
+  scrollbar-color: #ADADAD #FFFFFF00; /* Thumb color (gray) and track color (light gray) */
+
+  /* WebKit-based browsers (Chrome, Edge, Safari) for more detailed styling */
+  &::-webkit-scrollbar {
+    width: 8px; /* Thin width, matching typical Power BI built-in visuals */
+    height: 8px; /* For horizontal scrollbar */
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #FFFFFF00; /* Light gray track, subtle background */
+    border-radius: 4px; /* Slight rounding for modern look */
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888888; /* Medium gray thumb */
+    border-radius: 4px; /* Rounded thumb */
+    border: 2px solid #FFFFFF00; /* Padding around thumb for better visibility */
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #9e9e9e; /* Darker gray on hover, for interactivity */
+  }
+
+  /* Optional: Hide scrollbar when not hovering (for a cleaner look, like some Power BI visuals) */
+  &::-webkit-scrollbar-thumb:active {
+    background: #9e9e9e; /* Even darker on active/click */
+  }
+}
