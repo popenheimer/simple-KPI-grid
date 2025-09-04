@@ -4,7 +4,7 @@
         "displayName": "ERA Simple KPI Grid",
         "guid": "ERASimpleKPIGridGUID4AD8D1E1DA0943AEB18E1E59B92001A9",
         "visualClassName": "Visual",
-        "version": "1.0.0.7",
+        "version": "1.0.0.8",
         "description": "Easily create a grid of KPI Cards",
         "supportUrl": "https://example.com/support"
     },

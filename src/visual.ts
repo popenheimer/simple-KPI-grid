@@ -52,6 +52,7 @@ export class Visual implements IVisual {
     private tooltipService: ITooltipService;
     private cards: Selection<SVGGElement>;
     private scrollbarWidth: number = 0;
+    private isSingleKpi: boolean = false;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
@@ -108,6 +109,61 @@ export class Visual implements IVisual {
         const vpWidth: number = options.viewport.width;
         const vpHeight: number = options.viewport.height;
 
+        const MAX_CARDS = 1000; // Arbitrary limit to prevent performance issues
+
+        // Handle no data or too many data case
+        if (dataPoints.length === 0) {
+            // Set SVG to viewport size for no-data message
+            this.svg.attr("width", vpWidth - 5).attr("height", vpHeight - 5);
+            // Render no-data message
+            const fontSize = Math.min(vpWidth, vpHeight) / 18;
+            this.svg.append("text")
+                .attr("x", vpWidth / 2)
+                .attr("y", vpHeight / 2 - 20) // Starting position
+                .attr("text-anchor", "middle")
+                .style("font-size", `${fontSize}px`)
+                .append("tspan")
+                .text("No data added.")
+                .attr("x", vpWidth / 2)
+                .attr("dy", "0.35em") // First line
+                .append("tspan")
+                .text("Add a Value for a single card")
+                .attr("x", vpWidth / 2)
+                .attr("dy", "1.2em") // Second line, adjust dy for spacing
+                .append("tspan")
+                .text("and a Category to display a KPI grid.")
+                .attr("x", vpWidth / 2)
+                .attr("dy", "1.2em"); // Third line, adjust dy for spacing
+
+            return;
+        } else if (dataPoints.length > MAX_CARDS) {
+            // Set SVG to viewport size for no-data message
+            this.svg.attr("width", vpWidth - 5).attr("height", vpHeight - 5);
+            // Render no-data message
+            const fontSize = Math.min(vpWidth, vpHeight) / 18;
+            this.svg.append("text")
+                .attr("x", vpWidth / 2)
+                .attr("y", vpHeight / 2 - 20)
+                .attr("text-anchor", "middle")
+                .style("font-size", `${fontSize}px`)
+                .style("fill", "red")  // Use red for emphasis
+                .append("tspan")
+                .text(`Too many KPIs (${dataPoints.length} items).`)
+                .attr("x", vpWidth / 2)
+                .attr("dy", "0.35em")
+                .append("tspan")
+                .text("Apply filters to reduce categories")
+                .attr("x", vpWidth / 2)
+                .attr("dy", "1.2em")
+                .append("tspan")
+                .text("for better performance.")
+                .attr("x", vpWidth / 2)
+                .attr("dy", "1.2em");
+
+            console.warn(`Visual warning: DataPoints exceed limit (${dataPoints.length} > ${MAX_CARDS}). Suggest filtering.`);  // For dev debugging
+            return;
+        }
+
         // First-pass calculation (assume no scrollbars)
         let { cardWidth, cardHeight, columns, rows } = this.calculateGridDimensions(dataPoints.length, vpWidth, vpHeight, settings);
 
@@ -132,11 +188,24 @@ export class Visual implements IVisual {
             totalWidth = columns * (cardWidth + gridMargin) - gridMargin;
             totalHeight = rows * (cardHeight + gridMargin) - gridMargin;
         }
+        const hasCategories = dataView.categorical?.categories?.length > 0 || false;
+        this.isSingleKpi = !hasCategories && dataPoints.length === 1;
+
+        // For single measure (no categories), force single full-size card, ignoring row/column formatting
+        if (this.isSingleKpi) {
+            columns = 1;
+            rows = 1;
+            cardWidth = vpWidth;
+            cardHeight = vpHeight;
+            totalWidth = cardWidth;
+            totalHeight = cardHeight;
+            d3.select(this.svg.node().parentNode as HTMLElement).style("overflow", "hidden");
+        } else {
+            d3.select(this.svg.node().parentNode as HTMLElement).style("overflow", "auto");
+        }
 
         // Set SVG to content size (host div will scroll if needed)
         this.svg.attr("width", totalWidth).attr("height", totalHeight);
-
-        const hasCategories = dataView.categorical.categories.length > 0;
 
         this.cards = this.renderCards(dataPoints, settings, cardWidth, cardHeight, columns, rows, hasCategories);
 
@@ -618,6 +687,10 @@ export class Visual implements IVisual {
             this.formattingSettings.gridSettings.rows.visible = false;
             this.formattingSettings.gridSettings.columns.visible = true;
         }
+
+        //Conditionally toggle visibility for single KPI
+        this.formattingSettings.gridSettings.visible = !this.isSingleKpi;
+        this.formattingSettings.stateSettings.visible = !this.isSingleKpi;
 
         return this.formattingSettingsService.buildFormattingModel(this.formattingSettings);
     }
