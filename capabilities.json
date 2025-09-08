@@ -428,6 +428,12 @@
                     "type": {
                         "text": true
                     }
+                },
+                "allowSelections": {
+                    "displayName": "Allow Selections",
+                    "type": {
+                        "bool": true
+                    }
                 }
             }
         }

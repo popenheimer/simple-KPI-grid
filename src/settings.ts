@@ -280,6 +280,13 @@ export class GridSettings extends formattingSettings.SimpleCard {
 }
 
 export class StateSettings extends formattingSettings.SimpleCard {
+    
+    public allowSelections = new formattingSettings.ToggleSwitch({
+        name: "allowSelections",
+        displayName: "Allow Selections",
+        value: false
+    });
+
     public hoverFill = new formattingSettings.ColorPicker({
         name: "hoverFill",
         displayName: "Hover Fill Color",
@@ -313,7 +320,8 @@ export class StateSettings extends formattingSettings.SimpleCard {
     });
 
     name: string = "stateSettings";
-    displayName: string = "State Settings";
+    displayName: string = "Allow Selection";
+    topLevelSlice: formattingSettings.ToggleSwitch = this.allowSelections;
     slices = [this.hoverFill, this.activeFill, this.selectedFill, this.selectedDefault, this.selectedDefaultMeasureName];
 }
 

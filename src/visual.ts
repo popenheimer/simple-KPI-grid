@@ -22,7 +22,7 @@ type Selection<T extends d3.BaseType> = d3.Selection<T, any, any, any>;
 import DataView = powerbi.DataView;
 import { valueFormatter, textMeasurementService, interfaces } from "powerbi-visuals-utils-formattingutils";
 
-import { GridSettings, VisualSettings } from "./settings";
+import { VisualSettings } from "./settings";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 
 interface KpiDataPoint {
@@ -48,7 +48,6 @@ export class Visual implements IVisual {
     private formattingSettings: VisualSettings;
     private formattingSettingsService: FormattingSettingsService;
     private selectionManager: ISelectionManager;
-    private isFirstUpdate: boolean = true;
     private tooltipService: ITooltipService;
     private cards: Selection<SVGGElement>;
     private scrollbarWidth: number = 0;
@@ -190,6 +189,12 @@ export class Visual implements IVisual {
         }
         const hasCategories = dataView.categorical?.categories?.length > 0 || false;
         this.isSingleKpi = !hasCategories && dataPoints.length === 1;
+        const allowSelections = settings.stateSettings?.allowSelections?.value || false;
+
+        // NEW: Clear selections if toggled off (propagates to other visuals; callback will sync fills)
+        if (hasCategories && !allowSelections && this.selectionManager.hasSelection()) {
+            this.selectionManager.clear();
+        }
 
         // For single measure (no categories), force single full-size card, ignoring row/column formatting
         if (this.isSingleKpi) {
@@ -207,9 +212,9 @@ export class Visual implements IVisual {
         // Set SVG to content size (host div will scroll if needed)
         this.svg.attr("width", totalWidth).attr("height", totalHeight);
 
-        this.cards = this.renderCards(dataPoints, settings, cardWidth, cardHeight, columns, rows, hasCategories);
+        this.cards = this.renderCards(dataPoints, settings, cardWidth, cardHeight, columns, rows, hasCategories, allowSelections);
 
-        if (hasCategories) {
+        if (hasCategories && allowSelections) {
             this.syncSelectionState(this.cards, settings);
         }
 
@@ -358,7 +363,7 @@ export class Visual implements IVisual {
     }
 
     private applyDefaultSelection(dataPoints: KpiDataPoint[], settings: VisualSettings): void {
-        if (settings.stateSettings.selectedDefault.value && this.isFirstUpdate && dataPoints.length > 0 && this.selectionManager.getSelectionIds().length === 0) {
+        if (settings.stateSettings.selectedDefault.value && dataPoints.length > 0 && this.selectionManager.getSelectionIds().length === 0) {
             const targetInput = (settings.stateSettings.selectedDefaultMeasureName.value || "").trim().toLowerCase();
 
             let defaultSelectionId: ISelectionId | null = null;
@@ -381,7 +386,6 @@ export class Visual implements IVisual {
                     })
                     .catch(err => console.error('Default selection error:', err));
             }
-            this.isFirstUpdate = false;
         }
     }
 
@@ -419,7 +423,7 @@ export class Visual implements IVisual {
         return { cardWidth, cardHeight, columns, rows };
     }
 
-    private renderCards(dataPoints: KpiDataPoint[], settings: VisualSettings, cardWidth: number, cardHeight: number, columns: number, rows: number, hasCategories: boolean): Selection<SVGGElement> {
+    private renderCards(dataPoints: KpiDataPoint[], settings: VisualSettings, cardWidth: number, cardHeight: number, columns: number, rows: number, hasCategories: boolean, allowSelections: boolean): Selection<SVGGElement> {
         const gridMargin = settings.gridSettings.margin.value || 10;
         const startX = 0;
         const startY = 0;
@@ -527,19 +531,19 @@ export class Visual implements IVisual {
 
             group
                 .on("mouseover", () => {
-                    if (hasCategories) rect.attr("fill", settings.stateSettings.hoverFill.value.value);
+                    if (hasCategories && allowSelections) rect.attr("fill", settings.stateSettings.hoverFill.value.value);
                 })
                 .on("mouseout", () => {
-                    if (hasCategories) rect.attr("fill", this.getBaseFill(d, settings));
+                    if (hasCategories && allowSelections) rect.attr("fill", this.getBaseFill(d, settings));
                 })
                 .on("mousedown", () => {
-                    if (hasCategories) rect.attr("fill", settings.stateSettings.activeFill.value.value);
+                    if (hasCategories && allowSelections) rect.attr("fill", settings.stateSettings.activeFill.value.value);
                 })
                 .on("mouseup", () => {
-                    if (hasCategories) rect.attr("fill", settings.stateSettings.hoverFill.value.value);
+                    if (hasCategories && allowSelections) rect.attr("fill", settings.stateSettings.hoverFill.value.value);
                 })
                 .on("mousemove", (event) => {
-                    if (hasCategories && d.tooltipItems.length > 0) {
+                    if (hasCategories && allowSelections && d.tooltipItems.length > 0) {
                         this.tooltipService.show({
                             dataItems: d.tooltipItems,
                             identities: [d.selectionId],
@@ -555,7 +559,7 @@ export class Visual implements IVisual {
                     });
                 })
                 .on("click", (event) => {
-                    if (hasCategories) {
+                    if (hasCategories && allowSelections) {
                         this.selectionManager.select(d.selectionId, event.ctrlKey).then(() => {
                             this.syncSelectionState(mergedCards, settings);
                         });
@@ -568,6 +572,8 @@ export class Visual implements IVisual {
     }
 
     private syncSelectionState(mergedCards: Selection<SVGGElement>, settings: VisualSettings): void {
+        if (!this.cards) return; // Safer, though usually not needed
+
         const ids = <ISelectionId[]>this.selectionManager.getSelectionIds();
         mergedCards.select("rect.rect").attr("fill", (d: KpiDataPoint) => {
             d.selected = ids.some(id => id.getKey() === d.selectionId.getKey());
