@@ -5,7 +5,7 @@
         "guid": "ERASimpleKPIGridGUID4AD8D1E1DA0943AEB18E1E59B92001A9",
         "visualClassName": "Visual",
         "version": "1.0.1.0",
-        "description": "Easily create a grid of KPI Cards",
+        "description": "A customizable KPI Card grid, with selection control. See changelog: https://github.com/popenheimer/simple-KPI-grid/blob/main/CHANGELOG.md",
         "supportUrl": "https://example.com/support"
     },
     "apiVersion": "5.11.0",

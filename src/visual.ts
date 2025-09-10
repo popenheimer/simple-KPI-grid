@@ -122,7 +122,7 @@ export class Visual implements IVisual {
                 .attr("text-anchor", "middle")
                 .style("font-size", `${fontSize}px`)
                 .append("tspan")
-                .text("No data added.")
+                .text("No data added")
                 .attr("x", vpWidth / 2)
                 .attr("dy", "0.35em") // First line
                 .append("tspan")
@@ -130,7 +130,7 @@ export class Visual implements IVisual {
                 .attr("x", vpWidth / 2)
                 .attr("dy", "1.2em") // Second line, adjust dy for spacing
                 .append("tspan")
-                .text("and a Category to display a KPI grid.")
+                .text("and a Category to display a KPI grid")
                 .attr("x", vpWidth / 2)
                 .attr("dy", "1.2em"); // Third line, adjust dy for spacing
 
@@ -147,7 +147,7 @@ export class Visual implements IVisual {
                 .style("font-size", `${fontSize}px`)
                 .style("fill", "red")  // Use red for emphasis
                 .append("tspan")
-                .text(`Too many KPIs (${dataPoints.length} items).`)
+                .text(`Too many KPIs (${dataPoints.length} items)`)
                 .attr("x", vpWidth / 2)
                 .attr("dy", "0.35em")
                 .append("tspan")
@@ -155,7 +155,7 @@ export class Visual implements IVisual {
                 .attr("x", vpWidth / 2)
                 .attr("dy", "1.2em")
                 .append("tspan")
-                .text("for better performance.")
+                .text("for better performance")
                 .attr("x", vpWidth / 2)
                 .attr("dy", "1.2em");
 
@@ -344,19 +344,41 @@ export class Visual implements IVisual {
     }
 
     private calculateComparison(group: powerbi.DataViewValueColumn | undefined, measureValue: number, index: number, settings: VisualSettings): { comparisonDisplay: string, deltaPercent: string, deltaAbsolute: string } {
-        let comparisonValue = group?.values[index] as number ?? 0;
+        let comparisonValue: any = group?.values[index];
         let comparisonDisplay = "";
         let deltaPercent = "";
         let deltaAbsolute = "";
 
-        if (comparisonValue !== 0) {
+        if (comparisonValue !== null && comparisonValue !== undefined) {
             const comparisonFormat = group ? group.source.format || (group.objects && group.objects[index] && group.objects[index].general && group.objects[index].general.formatString as string) || "0.00" : "0.00";
             const compFormatter = valueFormatter.create({ format: comparisonFormat });
-            comparisonDisplay = compFormatter.format(comparisonValue);
 
-            const delta = ((measureValue - comparisonValue) / comparisonValue) * 100;
-            deltaPercent = ` (${delta.toFixed(1)}%)`;
-            deltaAbsolute = ` (${compFormatter.format(measureValue - comparisonValue)})`;
+            let numericComparisonValue: number | undefined;
+
+            if (typeof comparisonValue === 'number') {
+                numericComparisonValue = comparisonValue;
+                comparisonDisplay = compFormatter.format(numericComparisonValue);
+            } else if (typeof comparisonValue === 'string') {
+                const parsed = parseFloat(comparisonValue);
+                if (!isNaN(parsed) && comparisonValue.trim() !== '') {
+                    // Treat as formatted numeric
+                    numericComparisonValue = parsed;
+                    comparisonDisplay = compFormatter.format(numericComparisonValue);
+                } else {
+                    // Treat as text (preserve original, including spaces/newlines)
+                    comparisonDisplay = comparisonValue;
+                }
+            } else {
+                // Fallback for other types (e.g., boolean)
+                comparisonDisplay = comparisonValue.toString();
+            }
+
+            // Calculate deltas only if we have a valid number and != 0
+            if (typeof numericComparisonValue === 'number' && !isNaN(numericComparisonValue) && numericComparisonValue !== 0) {
+                const delta = ((measureValue - numericComparisonValue) / numericComparisonValue) * 100;
+                deltaPercent = ` (${delta.toFixed(1)}%)`;
+                deltaAbsolute = ` (${compFormatter.format(measureValue - numericComparisonValue)})`;
+            }
         }
 
         return { comparisonDisplay, deltaPercent, deltaAbsolute };
@@ -515,7 +537,7 @@ export class Visual implements IVisual {
                 .text(d.displayValue)
                 .style("display", d.measureValue ? "block" : "none");
 
-            const comparisonText = group.select("text.comparisonValue")
+            const comparisonText = group.select<SVGTextElement>("text.comparisonValue")
                 .attr("x", rectX + cardWidth / 2)
                 .attr("y", comparisonY)
                 .attr("dy", "0.35em")
@@ -525,9 +547,16 @@ export class Visual implements IVisual {
                 .style("font-family", settings.comparisonValue.comparisonValueFontFamily.value)
                 .style("font-weight", settings.comparisonValue.comparisonValueBold.value ? "bold" : "normal")
                 .style("font-style", settings.comparisonValue.comparisonValueItalic.value ? "italic" : "normal")
-                .style("text-decoration", settings.comparisonValue.comparisonValueUnderline.value ? "underline" : "none")
-                .text(d.comparisonDisplay ? comparisonDisplayFull : "")
-                .style("display", d.comparisonDisplay ? "block" : "none");
+                .style("text-decoration", settings.comparisonValue.comparisonValueUnderline.value ? "underline" : "none");
+
+            if (d.comparisonDisplay) {
+                comparisonText
+                    .text(comparisonDisplayFull)
+                    .style("display", "block");
+                this.wrapText(comparisonText, availableWidth, settings.comparisonValue.comparisonValueFontSize.value, settings.comparisonValue.comparisonValueFontFamily.value);
+            } else {
+                comparisonText.style("display", "none");
+            }
 
             group
                 .on("mouseover", () => {
@@ -565,6 +594,16 @@ export class Visual implements IVisual {
                         });
                     }
                     event.stopPropagation();
+                })
+                // NEW: Add context menu for right-click (enables drill-through)
+                .on("contextmenu", (event) => {
+                    if (hasCategories && allowSelections) {
+                        event.preventDefault(); // Prevent browser default context menu
+                        this.selectionManager.showContextMenu(d.selectionId, {
+                            x: event.clientX,
+                            y: event.clientY
+                        });
+                    }
                 });
         });
 
@@ -588,45 +627,64 @@ export class Visual implements IVisual {
     private wrapText(textSelection: Selection<SVGTextElement>, availableWidth: number, fontSize: number, fontFamily: string): void {
         textSelection.each(function () {
             const text = d3.select(this);
-            const words = text.text().split(/\s+/).reverse();
-            let word: string;
-            let line: string[] = [];
+            const fullText = text.text();
+            text.text(null); // Clear the text to rebuild with tspans
+
+            const paragraphs = fullText.split('\n');
             let lineNumber = 0;
-            const lineHeight = 1.1;
+            const lineHeight = 1.1; // Standard line height em
             const y = text.attr("y");
-            const dy = parseFloat(text.attr("dy")) || 0;
-            let tspan = text.text(null).append("tspan")
-                .attr("x", text.attr("x"))
-                .attr("y", y)
-                .attr("dy", dy + "em")
-                .style("font-size", `${fontSize}pt`)
-                .style("font-family", fontFamily);
+            const dyParse = parseFloat(text.attr("dy")) || 0;
+            let dy = dyParse;
 
-            while (word = words.pop()) {
-                line.push(word);
-                tspan.text(line.join(" "));
+            paragraphs.forEach((paragraph, paraIndex) => {
+                // Ensure a tspan is created even for empty paragraphs to maintain spacing
+                let tspan = text.append("tspan")
+                    .attr("x", text.attr("x"))
+                    .attr("y", y)
+                    .attr("dy", dy + "em")
+                    .style("font-size", `${fontSize}pt`)
+                    .style("font-family", fontFamily)
+                    .text(""); // Start empty
 
-                const textProperties: interfaces.TextProperties = {
-                    text: tspan.text(),
-                    fontFamily: fontFamily,
-                    fontSize: `${fontSize}pt`,
-                    fontWeight: "normal"
-                };
-                const measuredWidth = textMeasurementService.measureSvgTextWidth(textProperties);
+                if (paragraph.trim() !== '') {
+                    const words = paragraph.split(/\s+/).filter(w => w.length > 0).reverse();
+                    let word;
+                    let line: string[] = [];
 
-                if (measuredWidth > availableWidth && line.length > 1) {
-                    line.pop();
-                    tspan.text(line.join(" "));
-                    line = [word];
-                    tspan = text.append("tspan")
-                        .attr("x", text.attr("x"))
-                        .attr("y", y)
-                        .attr("dy", ++lineNumber * lineHeight + dy + "em")
-                        .text(word)
-                        .style("font-size", `${fontSize}pt`)
-                        .style("font-family", fontFamily);
+                    while (word = words.pop()) {
+                        line.push(word);
+                        tspan.text(line.join(" "));
+
+                        const textProperties: interfaces.TextProperties = {
+                            text: tspan.text(),
+                            fontFamily: fontFamily,
+                            fontSize: `${fontSize}pt`,
+                            fontWeight: "normal"
+                        };
+                        const measuredWidth = textMeasurementService.measureSvgTextWidth(textProperties);
+
+                        if (measuredWidth > availableWidth && line.length > 1) {
+                            line.pop();
+                            tspan.text(line.join(" "));
+                            line = [word];
+                            tspan = text.append("tspan")
+                                .attr("x", text.attr("x"))
+                                .attr("y", y)
+                                .attr("dy", ++lineNumber * lineHeight + dyParse + "em")
+                                .text(word)
+                                .style("font-size", `${fontSize}pt`)
+                                .style("font-family", fontFamily);
+                        }
+                    }
                 }
-            }
+
+                // Increment lineNumber for the next paragraph, even if empty
+                if (paraIndex < paragraphs.length - 1) {
+                    lineNumber++;
+                }
+                dy = lineNumber * lineHeight + dyParse;
+            });
         });
     }
 

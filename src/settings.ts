@@ -172,7 +172,7 @@ export class ComparisonValue extends formattingSettings.SimpleCard {
         name: "comparisonValuePrefix",
         displayName: "Prefix Text",
         value: "Baseline: ",
-        placeholder: "Baseline: "
+        placeholder: "Enter prefix text"
     });
 
     public comparisonValueDelta = new formattingSettings.AutoDropdown({
@@ -284,7 +284,7 @@ export class StateSettings extends formattingSettings.SimpleCard {
     public allowSelections = new formattingSettings.ToggleSwitch({
         name: "allowSelections",
         displayName: "Allow Selections",
-        value: false
+        value: true
     });
 
     public hoverFill = new formattingSettings.ColorPicker({
