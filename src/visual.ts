@@ -571,8 +571,17 @@ export class Visual implements IVisual {
                 .on("mouseup", () => {
                     if (hasCategories && allowSelections) rect.attr("fill", settings.stateSettings.hoverFill.value.value);
                 })
+                .on("click", (event) => {
+                    if (hasCategories && allowSelections) {
+                        this.selectionManager.select(d.selectionId, event.ctrlKey).then(() => {
+                            this.syncSelectionState(mergedCards, settings);
+                        });
+                    }
+                    event.stopPropagation();
+                })
+                // Move tooltip events outside the if – always enable if tooltips exist
                 .on("mousemove", (event) => {
-                    if (hasCategories && allowSelections && d.tooltipItems.length > 0) {
+                    if (hasCategories && d.tooltipItems.length > 0) {  // Keep hasCategories if single KPI doesn't need tooltips
                         this.tooltipService.show({
                             dataItems: d.tooltipItems,
                             identities: [d.selectionId],
@@ -587,18 +596,10 @@ export class Visual implements IVisual {
                         isTouchEvent: false
                     });
                 })
-                .on("click", (event) => {
-                    if (hasCategories && allowSelections) {
-                        this.selectionManager.select(d.selectionId, event.ctrlKey).then(() => {
-                            this.syncSelectionState(mergedCards, settings);
-                        });
-                    }
-                    event.stopPropagation();
-                })
-                // NEW: Add context menu for right-click (enables drill-through)
+                // Move contextmenu outside – enable right-click regardless of selections
                 .on("contextmenu", (event) => {
-                    if (hasCategories && allowSelections) {
-                        event.preventDefault(); // Prevent browser default context menu
+                    if (hasCategories) {  // Optional: Keep if single KPI doesn't need context
+                        event.preventDefault();
                         this.selectionManager.showContextMenu(d.selectionId, {
                             x: event.clientX,
                             y: event.clientY
